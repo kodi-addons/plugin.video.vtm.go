@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+import time
 from hashlib import md5
 from uuid import uuid4
 
@@ -193,29 +194,144 @@ class VtmGoAuth:
         util.SESSION.cookies.clear()
 
         # Start login flow
-        util.http_get('https://login2.vtm.be/authorize', params={
-            'client_id': 'vtm-go-android',
-            'response_type': 'id_token',
-            'scope': 'openid email profile address phone',
-            'nonce': 1550073732654,
-            'sdkVersion': '0.13.1',
-            'state': 'dnRtLWdvLWFuZHJvaWQ=',  # vtm-go-android
-            'redirect_uri': 'https://login2.vtm.be/continue',
-        }, headers={
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0.1; MotoG3 Build/MPIS24.107-55-2-17; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.88 Mobile Safari/537.36',
-            'X-Requested-With': 'be.vmma.vtm.zenderapp',
-        })
+        util.http_get(
+            'https://login2.vtm.be/authorize',
+            params={
+                'client_id': 'vtm-go-android',
+                'response_type': 'id_token',
+                'scope': 'openid email profile address phone',
+                'nonce': 1550073732654,
+                'sdkVersion': '0.13.1',
+                'state': 'dnRtLWdvLWFuZHJvaWQ=',  # vtm-go-android
+                'redirect_uri': 'https://login2.vtm.be/continue',
+            },
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0.1; MotoG3 Build/MPIS24.107-55-2-17; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.88 Mobile Safari/537.36',
+                'X-Requested-With': 'be.vmma.vtm.zenderapp',
+            })
 
-        # Send login credentials
+        # Wait a bit to make it look like we are entering a username
+        time.sleep(1.52)
+
         try:
-            response = util.http_post('https://login2.vtm.be/login',
-                                      params={
-                                          'client_id': 'vtm-go-android',
-                                      },
-                                      form={
-                                          'userName': self._username,
-                                          'password': self._password,
-                                      })
+            # Load identify page
+            response_identify = util.http_post(
+                'https://login.dpgmedia.be/identify',
+                params={
+                    'client_id': 'vtm-go-android',
+                },
+                form={
+                    'userName': self._username,
+                    'password': '',
+                },
+                headers={
+                    'Connection': 'keep-alive',
+                    'Cache-Control': 'max-age=0',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Origin': 'https://login.dpgmedia.be',
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0.1; MotoG3 Build/MPIS24.107-55-2-17; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.88 Mobile Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                    'X-Requested-With': 'be.vmma.vtm.zenderapp',
+                    'Referrer': 'https://login.dpgmedia.be/identify?client_id=vtm-go-android',
+
+                    'Sec-Fetch-Site': 'same-origin',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-User': '?1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+                })
+
+            # Extract Bot Manager url
+            match = re.search(r'<script type="text/javascript"  src="([^"]+)"></script>', response_identify.text)
+            if not match:
+                bot_manager_path = None
+            bot_manager_path = match.group(1)
+
+            if bot_manager_path:
+                util.http_get(
+                    'https://login.dpgmedia.be' + bot_manager_path,
+                    headers={
+                        'Connection': 'keep-alive',
+                        'Cache-Control': 'max-age=0',
+                        'Origin': 'https://login.dpgmedia.be',
+                        'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0.1; MotoG3 Build/MPIS24.107-55-2-17; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.88 Mobile Safari/537.36',
+                        'Accept': '*/*',
+                        'X-Requested-With': 'be.vmma.vtm.zenderapp',
+                        'Referrer': 'https://login.dpgmedia.be/identify?client_id=vtm-go-android',
+                        'Accept-Encoding': 'gzip, deflate',
+                        'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+                    })
+
+                util.http_post(
+                    'https://login.dpgmedia.be' + bot_manager_path,
+                    data={
+                        'sensor_data': '7a74G7m23Vrp0o5c9276481.7-1,2,-94,-100,Mozilla/5.0 (Linux; Android 6.0.1; MotoG3 Build/MPIS24.107-55-2-17; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.88 Mobile Safari/537.36,uaend,11123,20030107,en-GB,Gecko,0,0,0,0,400752,2241687,360,640,360,640,360,568,360,,cpen:0,i1:0,dm:0,cwen:0,non:1,opc:0,fc:0,sc:0,wrc:1,isc:0,vib:1,bat:1,x11:0,x12:1,12041,0.734324517367,814381120841.5,0,loc:-1,2,-94,-101,do_en,dm_en,t_en-1,2,-94,-105,0,2,0,0,864,832,0;1,2,0,0,883,883,0;-1,2,-94,-102,0,2,0,0,864,832,0;1,2,0,0,883,883,0;-1,2,-94,-108,-1,2,-94,-110,-1,2,-94,-117,-1,2,-94,-111,-1,2,-94,-109,-1,2,-94,-114,-1,2,-94,-103,-1,2,-94,-112,https://login.dpgmedia.be/identify?client_id=vtm-go-android-1,2,-94,-115,1,32,32,0,0,0,0,14,0,1628762241683,-999999,17424,0,0,2904,0,0,80,0,0,1D52C258DA870BC502880B0128FEC7A9~-1~YAAQlcQRAg/zF496AQAA3XjLOQbK8hVrUYSoRR7UfB4SY0k84H6UB+8L3cJm7pJGuh+lQaIZTUafKJRfatYGK+4KBcYzYagBzJ52ufB7grgjWp+KoeXdpHq2yhj3ye1Q+iq+vMK07eNDailmA95qDsevsQ/b4SKcBjPnO7RE6mAQGg8O82CmRp0GJJNygRp9BRxgarKDGXoEbvKuAewySzej133cV0WiRL72FpdTytIkMe4hvIN8NYfPCkIPtqus1uMtgrEwxAo5D/J2IQIQImxY2oODheUecCUfRgvajPPjrH0rktt4fh9kTVl6TaGsSD5l2AbyUfKDUm1M+khSW4GXwDYBFId11Il/vYmzhQMXadaTz9pKq8R9zAH7VrFqpguXr48SjIu+FomM~-1~-1~-1,36865,-1,-1,30212541,PiZtE,22800,33,0,-1-1,2,-94,-106,0,0-1,2,-94,-119,-1-1,2,-94,-122,0,0,0,0,1,0,0-1,2,-94,-123,-1,2,-94,-124,-1,2,-94,-126,-1,2,-94,-127,6-1,2,-94,-70,-1-1,2,-94,-80,94-1,2,-94,-116,302626590-1,2,-94,-118,92998-1,2,-94,-129,-1,2,-94,-121,;103;-1;0',
+                    },
+                    headers={
+                        'Connection': 'keep-alive',
+                        'Cache-Control': 'max-age=0',
+                        'Upgrade-Insecure-Requests': '1',
+                        'Origin': 'https://login.dpgmedia.be',
+                        'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0.1; MotoG3 Build/MPIS24.107-55-2-17; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.88 Mobile Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                        'X-Requested-With': 'be.vmma.vtm.zenderapp',
+                        'Sec-Fetch-Site': 'same-origin',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-User': '?1',
+                        'Sec-Fetch-Dest': 'document',
+                        'Referrer': response_identify.url,
+                        'Accept-Encoding': 'gzip, deflate',
+                        'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+                    })
+
+            # util.http_get(
+            #     'https://login.dpgmedia.be/resources/img/password-show.svg',
+            #     headers={
+            #         'Connection': 'keep-alive',
+            #         'Cache-Control': 'max-age=0',
+            #         'Upgrade-Insecure-Requests': '1',
+            #         'Origin': 'https://login.dpgmedia.be',
+            #         'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0.1; MotoG3 Build/MPIS24.107-55-2-17; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.88 Mobile Safari/537.36',
+            #         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            #         'X-Requested-With': 'be.vmma.vtm.zenderapp',
+            #         'Sec-Fetch-Site': 'same-origin',
+            #         'Sec-Fetch-Mode': 'navigate',
+            #         'Sec-Fetch-User': '?1',
+            #         'Sec-Fetch-Dest': 'document',
+            #         'Referrer': response_identify.url,
+            #         'Accept-Encoding': 'gzip, deflate',
+            #         'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+            #     })
+
+            # Wait a bit to make it look like we are entering a password
+            time.sleep(9.52)
+
+            response = util.http_post(
+                'https://login.dpgmedia.be/login',
+                params={
+                    'client_id': 'vtm-go-android',
+                },
+                form={
+                    'userName': self._username,
+                    'password': self._password,
+                },
+                headers={
+                    'Connection': 'keep-alive',
+                    'Cache-Control': 'max-age=0',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Origin': 'https://login.dpgmedia.be',
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0.1; MotoG3 Build/MPIS24.107-55-2-17; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.88 Mobile Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                    'X-Requested-With': 'be.vmma.vtm.zenderapp',
+                    'Sec-Fetch-Site': 'same-origin',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-User': '?1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Referrer': response_identify.url,
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
+                })
         except HTTPError as exc:
             if exc.response.status_code == 400:
                 raise InvalidLoginException()
